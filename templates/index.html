@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Dataset Studio | Dataset Builder & Fuzzy System Prep</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation & Status -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-face-smile-beam"></i>
+                </div>
+                <div class="brand-text">
+                    <h2>Dataset Studio</h2>
+                    <span class="badge-subtitle">Fuzzy System Collector</span>
+                </div>
+            </div>
+
+            <!-- Total Dataset Progress Card -->
+            <div class="card progress-summary-card">
+                <div class="card-header">
+                    <h3>Progreso General</h3>
+                    <span id="total-percent-text" class="percent-badge">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="total-progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-label">Fotos Capturadas</span>
+                        <span id="total-captured-count" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Meta Total</span>
+                        <span class="stat-value">1,800</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Roster List -->
+            <div class="section-title">
+                <i class="fa-solid fa-users"></i>
+                <span>Integrantes del Equipo (6)</span>
+            </div>
+            <div class="team-grid" id="team-roster-container">
+                <!-- Dynamically populated team member cards -->
+            </div>
+
+            <div class="sidebar-actions">
+                <a href="/api/export_fuzzy_csv" class="btn btn-emerald btn-block" id="btn-export-csv">
+                    <i class="fa-solid fa-file-csv"></i> Exportar Dataset Fuzzy (CSV)
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="top-header">
+                <div class="active-selection-indicator">
+                    <span class="label">Sujeto Actual:</span>
+                    <strong id="current-subject-display" class="highlight-name">alan</strong>
+                    <span class="divider">|</span>
+                    <span class="label">Emoción:</span>
+                    <span id="current-emotion-badge" class="emotion-pill emotion-feliz">
+                        <i class="fa-solid fa-face-smile"></i> Feliz
+                    </span>
+                </div>
+                <div class="system-status">
+                    <span id="cloud-status-badge" class="cloud-status-pill cloud-offline">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Modo Local
+                    </span>
+                    <span class="status-dot online"></span>
+                    <span>Cámara Lista</span>
+                </div>
+            </header>
+
+            <div class="workspace-grid">
+                <!-- Camera & Capture Console -->
+                <section class="card camera-card">
+                    <div class="card-header border-bottom">
+                        <h3><i class="fa-solid fa-camera"></i> Consola de Captura Rápida (100 Ráfagas)</h3>
+                        <div class="burst-settings">
+                            <label for="interval-select">Intervalo:</label>
+                            <select id="interval-select" class="select-input">
+                                <option value="80">Ultra Rápido (80ms)</option>
+                                <option value="120" selected>Rápido (120ms)</option>
+                                <option value="200">Normal (200ms)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Emotion Selector Toolbar -->
+                    <div class="emotion-selector-bar">
+                        <label class="bar-label">Selecciona Emoción:</label>
+                        <div class="emotion-buttons">
+                            <button type="button" class="btn-emotion active" data-emotion="feliz">
+                                <i class="fa-solid fa-face-smile"></i> Feliz
+                            </button>
+                            <button type="button" class="btn-emotion" data-emotion="enojado">
+                                <i class="fa-solid fa-face-angry"></i> Enojado
+                            </button>
+                            <button type="button" class="btn-emotion" data-emotion="triste">
+                                <i class="fa-solid fa-face-sad-tear"></i> Triste
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Camera Viewport with Overlay -->
+                    <div class="viewport-wrapper">
+                        <video id="webcam-feed" autoplay playsinline muted></video>
+                        <canvas id="guide-overlay"></canvas>
+                        
+                        <!-- Burst Flash Effect -->
+                        <div id="flash-effect" class="flash-overlay"></div>
+
+                        <!-- Burst Counter Overlay -->
+                        <div id="burst-overlay" class="burst-counter-overlay hidden">
+                            <div class="burst-ring">
+                                <span id="burst-count-num">0</span>
+                                <span class="burst-total">/ 100</span>
+                            </div>
+                            <p class="burst-instruction">¡Cambia sutilmente de ángulo o expresión!</p>
+                        </div>
+                    </div>
+
+                    <!-- Capture Action Controls -->
+                    <div class="capture-controls">
+                        <button id="btn-start-burst" class="btn btn-primary btn-hero">
+                            <i class="fa-solid fa-bolt"></i> Iniciar Captura de 100 Fotos
+                        </button>
+                        <button id="btn-single-photo" class="btn btn-secondary">
+                            <i class="fa-solid fa-camera"></i> 1 Foto Individual
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Dataset Inspector Gallery -->
+                <section class="card gallery-card">
+                    <div class="card-header border-bottom">
+                        <h3><i class="fa-solid fa-images"></i> Galería de Fotos Recientes</h3>
+                        <span id="gallery-count-badge" class="badge">0 fotos</span>
+                    </div>
+
+                    <div class="gallery-toolbar">
+                        <span class="gallery-filter-info">
+                            Mostrando fotos de <b id="gallery-subject-name">alan</b> (<span id="gallery-emotion-name">feliz</span>)
+                        </span>
+                        <div class="gallery-actions">
+                            <button id="btn-clear-section" class="btn btn-sm btn-danger" title="Borrar todas las fotos de esta sección">
+                                <i class="fa-solid fa-trash-can"></i> Borrar Sección
+                            </button>
+                            <button id="btn-refresh-gallery" class="btn btn-sm btn-icon" title="Recargar galería">
+                                <i class="fa-solid fa-rotate-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="gallery-grid" class="gallery-grid-container">
+                        <!-- Dynamic photo thumbnails -->
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/capture.js"></script>
+</body>
+</html>

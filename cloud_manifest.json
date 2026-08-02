@@ -1,0 +1,21 @@
+{
+  "records": [
+    {
+      "id": "alan_feliz_1785702462082",
+      "filename": "alan_feliz_1785702462082.jpg",
+      "subject": "alan",
+      "emotion": "feliz",
+      "url": "/dataset/alan/feliz/alan_feliz_1785702462082.jpg",
+      "public_id": "C:\\Users\\icrye\\.gemini\\antigravity-ide\\scratch\\face_dataset_studio\\dataset\\alan\\feliz\\alan_feliz_1785702462082.jpg",
+      "timestamp": 1785702462082,
+      "uploader": "test_runner",
+      "fuzzy_features": {
+        "mar": 0.65,
+        "mouth_curvature": 0.8,
+        "eyebrow_furrow": 0.7,
+        "eyebrow_slant": 0.5,
+        "ear": 0.5
+      }
+    }
+  ]
+}

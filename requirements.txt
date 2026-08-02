@@ -1,0 +1,9 @@
+flask
+opencv-python<5.0
+numpy<2.0
+pillow
+mediapipe
+scikit-fuzzy
+cloudinary
+python-dotenv
+requests

@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+exports/
+dataset/
+*.log
+test_fuzzy_export.csv
