@@ -21,8 +21,8 @@ Este proyecto está configurado con **Sincronización en la Nube (Cloud Storage 
 ### 1. Clonar el Repositorio
 Abre tu terminal (PowerShell o CMD) y ejecuta:
 ```bash
-git clone https://github.com/AlejandroMechE/photo.git
-cd photo
+git clone https://github.com/AlejandroMechE/photoAI.git
+cd photoAI
 ```
 
 ### 2. Instalar Dependencias de Python
