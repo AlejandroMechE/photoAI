@@ -2,6 +2,7 @@ import os
 import json
 import time
 import csv
+import re
 from dotenv import load_dotenv
 
 # Load environment variables from .env if present
@@ -85,6 +86,96 @@ class CloudDatasetStore:
     def is_cloud_active(self):
         return self.cloud_active
 
+    def sync_from_cloud(self):
+        """
+        Queries Cloudinary Admin API to retrieve ALL images uploaded by all teammates,
+        parsing subject, emotion, URL, and fuzzy metadata.
+        """
+        if not self.cloud_active or not self.cloudinary:
+            return
+
+        now = time.time()
+        # Cache cloud sync for 3 seconds to keep UI fast
+        if hasattr(self, '_last_sync_time') and (now - self._last_sync_time) < 3.0:
+            return
+
+        self._last_sync_time = now
+        try:
+            # Query all uploaded resources under prefix 'face_dataset_studio'
+            resources = []
+            next_cursor = None
+            
+            while True:
+                kwargs = {
+                    'type': 'upload',
+                    'prefix': 'face_dataset_studio',
+                    'max_results': 500,
+                    'context': True,
+                    'tags': True
+                }
+                if next_cursor:
+                    kwargs['next_cursor'] = next_cursor
+
+                result = self.cloudinary.api.resources(**kwargs)
+                fetched = result.get('resources', [])
+                resources.extend(fetched)
+                next_cursor = result.get('next_cursor')
+                if not next_cursor or len(resources) >= 2000:
+                    break
+
+            cloud_records_by_id = {}
+            for res in resources:
+                pub_id = res.get('public_id', '')
+                parts = pub_id.split('/')
+                if len(parts) >= 4 and parts[0] == 'face_dataset_studio':
+                    subj = parts[1].lower()
+                    emo = parts[2].lower()
+                    raw_name = parts[3]
+                    filename = f"{raw_name}.jpg"
+                    
+                    # Extract timestamp
+                    ts_match = re.search(r'_(\d{10,13})$', raw_name)
+                    timestamp_ms = int(ts_match.group(1)) if ts_match else int(time.time() * 1000)
+
+                    # Extract fuzzy features from Cloudinary context metadata if present
+                    ctx = res.get('context', {}).get('custom', {}) if isinstance(res.get('context'), dict) else {}
+                    fuzzy_feats = {
+                        "mar": float(ctx.get('mar', 0.5)),
+                        "mouth_curvature": float(ctx.get('mouth_curvature', 0.5)),
+                        "eyebrow_furrow": float(ctx.get('eyebrow_furrow', 0.5)),
+                        "eyebrow_slant": float(ctx.get('eyebrow_slant', 0.5)),
+                        "ear": float(ctx.get('ear', 0.5))
+                    }
+
+                    rec_id = f"{subj}_{emo}_{timestamp_ms}"
+                    cloud_records_by_id[rec_id] = {
+                        "id": rec_id,
+                        "filename": filename,
+                        "subject": subj,
+                        "emotion": emo,
+                        "url": res.get('secure_url', ''),
+                        "public_id": pub_id,
+                        "timestamp": timestamp_ms,
+                        "uploader": ctx.get('uploader', 'teammate'),
+                        "fuzzy_features": fuzzy_feats
+                    }
+
+            if cloud_records_by_id:
+                # Merge cloud records with local manifest
+                existing_map = {r.get('id'): r for r in self.manifest.get('records', [])}
+                for rec_id, cloud_rec in cloud_records_by_id.items():
+                    existing_map[rec_id] = cloud_rec
+
+                # Sort by timestamp descending
+                merged = list(existing_map.values())
+                merged.sort(key=lambda r: r.get('timestamp', 0), reverse=True)
+                self.manifest['records'] = merged
+                self._save_manifest()
+                print(f"[CloudDatasetStore Sync] Successfully synced {len(cloud_records_by_id)} global photos from Cloudinary.")
+
+        except Exception as e:
+            print(f"[CloudDatasetStore Sync Warning] Could not sync from Cloudinary ({e}).")
+
     def upload_image(self, subject, emotion, image_bytes, fuzzy_features=None, uploader="anonymous"):
         """
         Uploads image to Cloudinary (or saves to local disk), updates manifest database.
@@ -97,6 +188,16 @@ class CloudDatasetStore:
         url = ""
         public_id = ""
 
+        fuzzy_features = fuzzy_features or {}
+        context_dict = {
+            "mar": str(fuzzy_features.get('mar', 0.5)),
+            "mouth_curvature": str(fuzzy_features.get('mouth_curvature', 0.5)),
+            "eyebrow_furrow": str(fuzzy_features.get('eyebrow_furrow', 0.5)),
+            "eyebrow_slant": str(fuzzy_features.get('eyebrow_slant', 0.5)),
+            "ear": str(fuzzy_features.get('ear', 0.5)),
+            "uploader": str(uploader)
+        }
+
         if self.cloud_active and self.cloudinary:
             try:
                 folder_path = f"face_dataset_studio/{subject}/{emotion}"
@@ -104,7 +205,8 @@ class CloudDatasetStore:
                     image_bytes,
                     folder=folder_path,
                     public_id=f"{subject}_{emotion}_{timestamp_ms}",
-                    tags=[subject, emotion, "face_dataset_studio"]
+                    tags=[subject, emotion, "face_dataset_studio"],
+                    context=context_dict
                 )
                 url = response.get('secure_url', '')
                 public_id = response.get('public_id', '')
@@ -123,28 +225,18 @@ class CloudDatasetStore:
             "public_id": public_id,
             "timestamp": timestamp_ms,
             "uploader": uploader,
-            "fuzzy_features": fuzzy_features or {}
+            "fuzzy_features": fuzzy_features
         }
 
         self.manifest["records"].append(record)
         self._save_manifest()
         return record
 
-    def _save_local_file(self, subject, emotion, filename, image_bytes):
-        target_dir = os.path.join(self.local_dataset_dir, subject, emotion)
-        os.makedirs(target_dir, exist_ok=True)
-        file_path = os.path.join(target_dir, filename)
-
-        with open(file_path, 'wb') as f:
-            f.write(image_bytes)
-
-        relative_url = f"/dataset/{subject}/{emotion}/{filename}"
-        return relative_url, file_path
-
     def get_stats(self):
         """
         Returns global progress stats per team member and emotion.
         """
+        self.sync_from_cloud()
         stats = {m: {e: 0 for e in self.emotions} for m in self.team_members}
         total_images = 0
 
@@ -168,6 +260,7 @@ class CloudDatasetStore:
         }
 
     def get_photos_for_section(self, subject, emotion):
+        self.sync_from_cloud()
         subject = subject.lower()
         emotion = emotion.lower()
 
